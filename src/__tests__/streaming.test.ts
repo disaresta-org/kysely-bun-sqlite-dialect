@@ -1,7 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import type { Kysely } from "kysely";
-import { createDatabase, createKysely, type TestDB } from "./helpers.js";
+import { createDatabase, createKysely, recordStatementCalls, type TestDB } from "./helpers.js";
 
 // One fresh in-memory database per test, shared by every group in this file.
 let database: Database;
@@ -49,6 +49,42 @@ describe("BunSqliteDialect streaming", () => {
     }
 
     expect(streamed).toEqual(["Arnold"]);
+  });
+
+  it("streams with a cursor instead of materializing the whole result", async () => {
+    await db
+      .insertInto("person")
+      .values([
+        { name: "Jennifer", age: 41 },
+        { name: "Arnold", age: 63 },
+        { name: "Sylvester", age: 76 },
+      ])
+      .execute();
+
+    const calls = recordStatementCalls(database);
+    const streamed: string[] = [];
+
+    for await (const row of db.selectFrom("person").select("name").orderBy("name").stream()) {
+      streamed.push(row.name);
+    }
+
+    expect(streamed).toEqual(["Arnold", "Jennifer", "Sylvester"]);
+    // An implementation that called `all()` and yielded each row would satisfy
+    // every other streaming test here, so pin the cursor itself.
+    expect(calls).toContain("iterate");
+    expect(calls).not.toContain("all");
+  });
+
+  it("finalizes the private statement when a stream is abandoned", async () => {
+    await db.insertInto("person").values({ name: "Jennifer", age: 41 }).execute();
+
+    const calls = recordStatementCalls(database);
+    const stream = db.selectFrom("person").selectAll().stream();
+
+    await stream.next();
+    await stream.return?.(undefined);
+
+    expect(calls).toContain("finalize");
   });
 
   it("streams lazily, one row at a time", async () => {

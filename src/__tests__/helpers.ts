@@ -65,3 +65,36 @@ export function recordSql(database: Database): string[] {
 
   return recorded;
 }
+
+/**
+ * Records the statement methods the driver actually calls, so a test can tell a
+ * cursor (`iterate`) from a materializing read (`all`), and can see whether a
+ * statement was finalized.
+ */
+export function recordStatementCalls(database: Database): string[] {
+  const calls: string[] = [];
+
+  for (const method of ["query", "prepare"] as const) {
+    const open = database[method].bind(database);
+
+    database[method] = ((sql: string) =>
+      new Proxy(open(sql), {
+        get(statement, property) {
+          // `statement` is the receiver on purpose: native getters such as
+          // `columnNames` throw if invoked on the proxy instead.
+          const value = Reflect.get(statement, property, statement);
+
+          if (typeof value !== "function" || typeof property !== "string") {
+            return value;
+          }
+
+          return (...args: unknown[]) => {
+            calls.push(property);
+            return value.apply(statement, args);
+          };
+        },
+      })) as Database[typeof method];
+  }
+
+  return calls;
+}

@@ -304,12 +304,10 @@ difference is test-side — 0.28 exports `Migrator` from the root, 0.29 from
 `tsdown`'s `nodeProtocol: true` prefixes builtin specifiers with `node:` and
 treats `bun:sqlite` as a builtin, emitting `import { Database } from
 "node:bun:sqlite"` into `dist/index.d.ts` — a specifier that resolves nowhere,
-and one that neither `attw` nor `publint` flags. It is now `false`, which costs
-nothing because the source imports no node builtins.
+and one that neither `attw` nor `publint` flags.
 
 `syncpack` rejects a peer range that differs from the pinned devDependency
-version, so a narrow ignore for `kysely`'s peer entry records that the floor is
-deliberate.
+version, so an ignore for peer entries records that the floor is deliberate.
 
 ## Coverage review against Kysely's own dialect suite
 
@@ -389,3 +387,27 @@ imports Kysely's `AbortableOperationOptions` directly and the local type is gone
 `scripts/peer-floor.ts` prints the floor out of `peerDependencies`, and a
 `peer-floor` CI job installs it and runs the suite and type checks against it.
 An unexercised floor is a promise that rots; this makes it a check.
+
+## Correction: how the packaging and syncpack fixes were finally expressed
+
+Both landed one altitude lower than first written, in a later cleanup pass.
+
+`nodeProtocol` is **not** disabled. Turning it off repo-wide would stop
+normalizing real node builtins too, and it was the only guard against a bad
+builtin specifier since neither `publint` nor `attw` flags one. The config keeps
+`nodeProtocol: true` and exempts the one specifier with
+`deps: { neverBundle: ["bun:sqlite"] }`. Both halves were verified: `bun:sqlite`
+stays unprefixed in `dist/index.d.ts`, and a bare `fs` import still emits
+`node:fs` in both output formats.
+
+The `syncpack` ignore is stated for all peer dependencies rather than naming
+`kysely`, matching the `semverGroups` rule beside it, so a second peer
+dependency does not trip the same false positive.
+
+## Invariant: one fresh database per test
+
+Several assertions depend on it rather than merely benefiting from it — a
+returned autoincrement id of exactly `1`, and two different tests each creating
+a table named `toy`. The per-test `beforeEach` that constructs a new
+`:memory:` database is therefore load-bearing, not scaffolding. It may be
+hoisted to file scope (it has been) but not widened to `beforeAll`.

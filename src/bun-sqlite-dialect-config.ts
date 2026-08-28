@@ -52,11 +52,20 @@ export interface BunSqliteDialectConfig {
 const TRANSACTION_BEHAVIORS: ReadonlyArray<BunSqliteTransactionBehavior> = ["deferred", "immediate", "exclusive"];
 
 /**
- * Fails at construction time rather than at the first transaction, so a typo
+ * Fails at construction time rather than at the first query, so a mistake
  * surfaces where it was made.
+ *
+ * The `database` check earns its place: this package exists because handing
+ * Kysely the wrong SQLite object fails silently, and the likeliest wrong value
+ * here is a `better-sqlite3` database passed mid-migration. Without the check
+ * that reaches the first query as a bare property-access error naming nothing.
  */
 export function assertValidConfig(config: BunSqliteDialectConfig): void {
-  const { transactionBehavior } = config;
+  const { database, transactionBehavior } = config;
+
+  if (typeof database !== "function" && typeof database?.query !== "function") {
+    throw new Error("config.database must be a bun:sqlite Database, or a function returning one");
+  }
 
   if (transactionBehavior !== undefined && !TRANSACTION_BEHAVIORS.includes(transactionBehavior)) {
     throw new Error(

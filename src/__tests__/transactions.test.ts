@@ -92,6 +92,9 @@ describe("BunSqliteDialect transactions", () => {
 
   it("begins an immediate transaction when configured to", async () => {
     const recorded = recordSql(database);
+    // Two Kysely instances over one Database each get their own connection
+    // mutex, so they do not serialize against each other. Fine here because
+    // usage is sequential; not a pattern to copy into concurrent code.
     const immediate = createKysely({ database, transactionBehavior: "immediate" });
 
     await immediate.transaction().execute(async () => {});

@@ -20,9 +20,10 @@ import {
 /**
  * Bun types `Statement`'s parameters as a tuple of individual bindings, which
  * cannot express the single-array form this driver has to use (see
- * {@link toBindings}), so both call sites widen it.
+ * {@link toBindings}). Leaving the parameter at Bun's own default keeps both
+ * call sites assignable without restating it.
  */
-type PreparedStatement = Statement<unknown, any[]>;
+type PreparedStatement = Statement<unknown>;
 
 const BEGIN_SQL: Record<BunSqliteTransactionBehavior, string> = {
   deferred: "begin",

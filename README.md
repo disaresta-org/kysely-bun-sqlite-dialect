@@ -121,7 +121,11 @@ something specific to this one.
 ## Things worth knowing
 
 - **`destroy()` closes your `Database`.** `await db.destroy()` calls
-  `database.close()`, the same as Kysely's built-in dialect.
+  `database.close()`, the same as Kysely's built-in dialect. That close is lazy
+  where streams are concerned: `bun:sqlite` releases the connection only after
+  the last prepared statement is finalized, so a stream abandoned without being
+  run to completion or closed can defer the real close until GC. Consuming a
+  stream fully, or `break`ing out of it, finalizes immediately.
 - **`Date` parameters are rejected.** `bun:sqlite` binds only strings,
   `TypedArray`s, booleans, numbers, bigints and null, so a `Date` raises
   `Binding expected string, TypedArray, boolean, number, bigint or null`. Store
@@ -196,9 +200,12 @@ with `@types/node`. It says nothing about needing Node at runtime — the built
 JavaScript never imports `bun:sqlite` itself, it only accepts a `Database` you
 hand it.
 
-Note that `tsdown.config.ts` sets `nodeProtocol: false` deliberately: the option
-prefixes builtin specifiers with `node:` and treats `bun:sqlite` as one,
-emitting an unresolvable `"node:bun:sqlite"` into the declaration file.
+Note that `tsdown.config.ts` keeps `nodeProtocol: true` but exempts `bun:sqlite`
+via `deps.neverBundle`. The option prefixes builtin specifiers with `node:` and
+counts `bun:sqlite` as one, which emits an unresolvable `"node:bun:sqlite"` into
+the declaration file — and neither `publint` nor `attw` flags it. Exempting the
+one specifier keeps the prefixing working for real node builtins; disabling the
+option outright would silently stop normalizing those too.
 
 ### Development workflow
 

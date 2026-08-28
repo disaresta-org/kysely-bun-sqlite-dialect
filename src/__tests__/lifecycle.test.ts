@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
-import { BunSqliteDriver } from "../index.js";
+import { BunSqliteDialect, BunSqliteDriver } from "../index.js";
 import { createDatabase, createKysely } from "./helpers.js";
 
 describe("BunSqliteDialect lifecycle", () => {
@@ -90,5 +90,35 @@ describe("BunSqliteDialect lifecycle", () => {
     const driver = new BunSqliteDriver({ database: new Database(":memory:") });
 
     await expect(driver.acquireConnection()).rejects.toThrow(/init/);
+  });
+});
+
+describe("BunSqliteDialect config validation", () => {
+  it("rejects a missing database", () => {
+    expect(() => new BunSqliteDialect({ database: undefined as never })).toThrow(/database/);
+  });
+
+  it("rejects an object that is not a bun:sqlite Database", () => {
+    // The likeliest wrong value is a better-sqlite3 Database, mid-migration.
+    // It has `prepare` but no `query`.
+    expect(() => new BunSqliteDialect({ database: { prepare: () => {} } as never })).toThrow(/database/);
+  });
+
+  it("accepts a database factory", () => {
+    expect(() => new BunSqliteDialect({ database: async () => createDatabase() })).not.toThrow();
+  });
+
+  it("validates the database when the driver is constructed directly", () => {
+    expect(() => new BunSqliteDriver({ database: {} as never })).toThrow(/database/);
+  });
+
+  it("validates transactionBehavior when the driver is constructed directly", () => {
+    expect(
+      () =>
+        new BunSqliteDriver({
+          database: new Database(":memory:"),
+          transactionBehavior: "whenever" as never,
+        }),
+    ).toThrow(/transactionBehavior/);
   });
 });
