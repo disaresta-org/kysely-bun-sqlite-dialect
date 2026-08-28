@@ -58,7 +58,7 @@
     "@commitlint/cli": "21.2.2",
     "@commitlint/config-conventional": "21.2.2",
     "@types/bun": "1.4.0",
-    "@types/node": "26.4.0",
+    "@types/node": "24.13.3",
     "kysely": "0.29.5",
     "lefthook": "2.1.10",
     "publint": "0.3.24",
@@ -73,7 +73,7 @@
   "bugs": "https://github.com/theogravity/kysely-bun-sqlite-adapter/issues",
   "engines": {
     "bun": ">=1.2.0",
-    "node": ">=26"
+    "node": ">=24"
   },
   "files": [
     "dist"

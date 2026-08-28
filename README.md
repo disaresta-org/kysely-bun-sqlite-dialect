@@ -200,6 +200,11 @@ with `@types/node`. It says nothing about needing Node at runtime — the built
 JavaScript never imports `bun:sqlite` itself, it only accepts a `Database` you
 hand it.
 
+It is set to the current Node LTS (`>=24`) rather than the newest release, so
+installing under npm or pnpm does not warn `EBADENGINE` over a constraint that
+is really about this repo's build. Raising it narrows who can install the
+package without changing what the package needs.
+
 Note that `tsdown.config.ts` keeps `nodeProtocol: true` but exempts `bun:sqlite`
 via `deps.neverBundle`. The option prefixes builtin specifiers with `node:` and
 counts `bun:sqlite` as one, which emits an unresolvable `"node:bun:sqlite"` into
