@@ -227,10 +227,6 @@ lint on pre-push, and commitlint on the commit message.
 | `bun run syncpack:update` | Update all dependencies to their latest versions and reinstall        |
 | `bun run clean`           | Remove `.turbo`, `node_modules` and `dist`                           |
 
-## License
-
-MIT © Disaresta
-
 ---
 
-Built and maintained by [Disaresta](https://disaresta.com).
+Built and maintained by [Disaresta](https://disaresta.com). MIT licensed.
