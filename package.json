@@ -19,7 +19,7 @@
   "sideEffects": false,
   "license": "MIT",
   "repository": "git@github.com:disaresta-org/kysely-bun-sqlite-dialect.git",
-  "author": "Theo Gravity <theo@suteki.nu>",
+  "author": "Disaresta",
   "keywords": [
     "kysely",
     "kysely-dialect",
