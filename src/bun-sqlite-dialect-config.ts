@@ -1,16 +1,5 @@
 import type { Database } from "bun:sqlite";
-import type { DatabaseConnection } from "kysely";
-
-/**
- * The subset of Kysely's `AbortableOperationOptions` this dialect forwards.
- *
- * Declared here rather than imported from Kysely because that type only exists
- * from Kysely 0.29 onwards, and structural typing means this shape satisfies
- * the `Driver` interface either way.
- */
-export interface BunSqliteOperationOptions {
-  readonly signal?: AbortSignal | undefined;
-}
+import type { AbortableOperationOptions, DatabaseConnection } from "kysely";
 
 /**
  * How the driver opens a transaction.
@@ -44,7 +33,7 @@ export interface BunSqliteDialectConfig {
    * });
    * ```
    */
-  database: Database | ((options?: BunSqliteOperationOptions) => Promise<Database>);
+  database: Database | ((options?: AbortableOperationOptions) => Promise<Database>);
 
   /**
    * Called once, after the connection is created and before the first query
@@ -52,7 +41,7 @@ export interface BunSqliteDialectConfig {
    *
    * This is a Kysely feature rather than a `bun:sqlite` one.
    */
-  onCreateConnection?: (connection: DatabaseConnection, options?: BunSqliteOperationOptions) => Promise<void>;
+  onCreateConnection?: (connection: DatabaseConnection, options?: AbortableOperationOptions) => Promise<void>;
 
   /**
    * How transactions are opened. Defaults to `"deferred"`.

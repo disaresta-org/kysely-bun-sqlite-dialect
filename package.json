@@ -68,7 +68,7 @@
     "typescript": "7.0.2"
   },
   "peerDependencies": {
-    "kysely": ">=0.28.0"
+    "kysely": ">=0.29.0"
   },
   "bugs": "https://github.com/theogravity/kysely-bun-sqlite-adapter/issues",
   "engines": {

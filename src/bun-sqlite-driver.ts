@@ -1,5 +1,6 @@
 import type { Database, SQLQueryBindings, Statement } from "bun:sqlite";
 import {
+  type AbortableOperationOptions,
   CompiledQuery,
   createQueryId,
   type DatabaseConnection,
@@ -13,7 +14,6 @@ import {
 import {
   assertValidConfig,
   type BunSqliteDialectConfig,
-  type BunSqliteOperationOptions,
   type BunSqliteTransactionBehavior,
 } from "./bun-sqlite-dialect-config.js";
 
@@ -36,7 +36,7 @@ export class BunSqliteDriver implements Driver {
     this.#config = Object.freeze({ ...config });
   }
 
-  async init(options?: BunSqliteOperationOptions): Promise<void> {
+  async init(options?: AbortableOperationOptions): Promise<void> {
     const { database, onCreateConnection } = this.#config;
 
     this.#database = typeof database === "function" ? await database(options) : database;

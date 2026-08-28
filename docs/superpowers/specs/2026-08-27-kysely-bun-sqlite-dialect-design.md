@@ -360,3 +360,32 @@ reference that escapes its type checking fails silently rather than loudly on
 this driver. There is nothing to fix — SQLite's DQS setting is compile-time and
 Bun does not expose `sqlite3_db_config` — so it is pinned by a test and
 documented in the README.
+
+## Correction: the peer floor is 0.29.0, not 0.28.0
+
+The floor was raised after the coverage work found that 0.28 is genuinely
+broken for this dialect, not merely untestable.
+
+Running the expanded suite against kysely `0.28.0` failed the parallel-transaction
+isolation test: a rolled-back transaction's row survived, committed by another
+thread. The cause is structural. In 0.28 the `ConnectionMutex` that serializes a
+single-connection database lives **inside `SqliteDriver`**, so every
+single-connection dialect had to carry its own lock. 0.29 moved it up into
+`RuntimeDriver`, which installs it whenever the adapter reports
+`supportsMultipleConnections === false`. This dialect, written against 0.29, has
+no lock of its own — correct there, unsafe on 0.28, where parallel transactions
+interleave on the one connection and corrupt data.
+
+Supporting 0.28 would mean carrying a driver-side mutex permanently for one
+version behind, while still being unable to run the abort-signal tests (0.29
+added `signal` options) or resolve `kysely/migration` (0.29 added the subpath).
+The floor moved to `>=0.29.0` instead, verified at 0.29.0 exactly: 90 tests and
+`tsc` pass.
+
+This also removes the reason the design declared `BunSqliteOperationOptions`
+locally. That existed only to keep the 0.28 line compiling, so the config now
+imports Kysely's `AbortableOperationOptions` directly and the local type is gone.
+
+`scripts/peer-floor.ts` prints the floor out of `peerDependencies`, and a
+`peer-floor` CI job installs it and runs the suite and type checks against it.
+An unexercised floor is a promise that rots; this makes it a check.

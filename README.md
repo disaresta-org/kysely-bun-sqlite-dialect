@@ -150,8 +150,17 @@ something specific to this one.
 
 ## Kysely compatibility
 
-Requires Kysely `>=0.28.0`. The test suite and type checks are run against both
-`0.28.7` and `0.29.5`.
+Requires Kysely `>=0.29.0`. CI runs the full suite and type checks against both
+the declared floor and the pinned development version, so the floor cannot drift
+from what is actually supported.
+
+Kysely 0.28 is **not** supported, and the reason is worth stating: in 0.28 the
+connection mutex that serializes access to a single-connection database lived
+inside `SqliteDriver` itself, and 0.29 moved it up into Kysely's `RuntimeDriver`,
+driven by the adapter's `supportsMultipleConnections`. A dialect written against
+0.29 therefore has no lock of its own, and on 0.28 parallel transactions
+interleave on the one connection — a rolled-back transaction's writes can be
+committed by another. Measured, not theorized.
 
 ## Contributing
 
