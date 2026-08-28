@@ -310,3 +310,53 @@ nothing because the source imports no node builtins.
 `syncpack` rejects a peer range that differs from the pinned devDependency
 version, so a narrow ignore for `kysely`'s peer entry records that the floor is
 deliberate.
+
+## Coverage review against Kysely's own dialect suite
+
+Kysely's shared suite (`test/node/src/*.test.ts` at v0.29.5) runs the same tests
+against postgres, mysql, mssql, pglite and sqlite. Most of it exercises the
+query builder, which is Kysely's to test, not a dialect's. The tests that do
+constrain a driver were ported here, giving 90 tests total. What the comparison
+turned up:
+
+- **Concurrency was untested.** Kysely runs 100 parallel transactions, half
+  failing, against every dialect including sqlite. Ported at 40 threads, plus
+  parallel plain queries and a check that a rolled-back transaction is never
+  visible to a query racing it. All pass: the `ConnectionMutex` that Kysely
+  installs for `supportsMultipleConnections: false` serializes correctly over a
+  single shared connection.
+- **The abort-signal contract was untested.** Kysely 0.29's `cancellation.test.ts`
+  applies to sqlite except for the database-side `cancel query` / `kill session`
+  strategies. Ported: an unaborted signal, an already-aborted signal (asserting
+  `__kysely_timing__ === 'before query execution'`), aborted streams, and
+  `db.connection()`, where a single-connection dialect must report
+  `'before acquireConnection:mutex'`. All pass, which confirms the design's
+  decision to forward the signal without consulting it: Kysely's executor owns
+  the contract, and a synchronous driver has no in-flight query to interrupt.
+- **Injection containment was untested.** Ported from `sql-injection.test.ts`,
+  which asserts the table still exists afterwards. Also added the case that
+  suite has no reason to cover: a multi-statement string reaching the driver.
+  `bun:sqlite` prepares one statement, so a smuggled `; drop table` never runs.
+- **Isolation levels and access modes are excluded for sqlite** in Kysely's
+  suite too, so ignoring `TransactionSettings` is correct rather than a gap.
+- **Driver-contract cases now covered**: a transaction that fails to begin is
+  never rolled back (verified by subclassing `BunSqliteDriver`, which is why it
+  is exported); queries after commit/rollback are refused; a failed statement
+  inside a transaction does not poison it; the userland stack survives on a
+  driver error; savepoint release and rollback-after-release; `explain`;
+  `executeTakeFirstOrThrow` with no rows; `insert or ignore` reporting zero
+  affected rows; blob and null round-trips; a result-transforming plugin;
+  `await using`; and introspection depth — no schemas, full column metadata,
+  default values, and views.
+
+### Finding: bun ships SQLite with `DQS=3`
+
+`pragma compile_options` reports `DQS=3`, so the double-quoted-string
+misfeature is fully enabled and an unresolvable double-quoted identifier is
+accepted as a string literal — `select "nope" from person` yields `"nope"` as a
+value instead of raising `no such column`. better-sqlite3 compiles with
+`SQLITE_DQS=0` and raises. Since Kysely quotes every identifier, any bad column
+reference that escapes its type checking fails silently rather than loudly on
+this driver. There is nothing to fix — SQLite's DQS setting is compile-time and
+Bun does not expose `sqlite3_db_config` — so it is pinned by a test and
+documented in the README.

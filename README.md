@@ -134,6 +134,15 @@ something specific to this one.
   compiled-statement LRU owns compilation and finalization. Streams are the one
   exception: they get a private statement, because a cached statement holds a
   single cursor and would be reset by any re-execution of the same SQL.
+- **A mistyped column name yields its own name, not an error.** Bun ships SQLite
+  compiled with `DQS=3`, the double-quoted-string misfeature fully enabled, so
+  an unresolvable double-quoted identifier is accepted as a string literal:
+  `select "nope" from person` returns `"nope"` as a value. better-sqlite3
+  compiles with `SQLITE_DQS=0` and raises `no such column` instead, so this is a
+  real difference to watch for when migrating. Kysely quotes all identifiers, so
+  any typo Kysely cannot catch at the type level reaches SQLite this way. It is
+  not an injection risk — the whole token is one literal — but it does mean a
+  bad column reference fails silently.
 - **`safeIntegers` works.** Set it on the `Database` and integer columns come
   back as `bigint`.
 - **Errors are not wrapped.** Bun's error reaches you as-is, with its `code`

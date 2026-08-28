@@ -1,7 +1,8 @@
 import type { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { type Kysely, sql } from "kysely";
+import { CamelCasePlugin, type Generated, Kysely, sql } from "kysely";
 import { type Migration, type MigrationProvider, Migrator } from "kysely/migration";
+import { BunSqliteDialect } from "../index.js";
 import { createDatabase, createKysely, type TestDB } from "./helpers.js";
 
 describe("BunSqliteDialect integration", () => {
@@ -163,5 +164,171 @@ describe("BunSqliteDialect parameter binding", () => {
     }
 
     expect(streamed).toEqual(["Arnold"]);
+  });
+});
+
+describe("BunSqliteDialect introspection", () => {
+  let database: Database;
+  let db: Kysely<TestDB>;
+
+  beforeEach(() => {
+    database = createDatabase();
+    db = createKysely({ database });
+  });
+
+  afterEach(async () => {
+    await db.destroy();
+  });
+
+  it("reports no schemas, as sqlite has none", async () => {
+    expect(await db.introspection.getSchemas()).toEqual([]);
+  });
+
+  it("reports full column metadata", async () => {
+    const tables = await db.introspection.getTables();
+    const person = tables.find((table) => table.name === "person");
+
+    expect(person).toEqual({
+      name: "person",
+      isForeign: false,
+      isView: false,
+      columns: [
+        {
+          name: "id",
+          // SQLite uppercases recognized affinity keywords and leaves anything
+          // else verbatim, so a `varchar(255)` column would report as written.
+          dataType: "INTEGER",
+          isNullable: true,
+          isAutoIncrementing: true,
+          hasDefaultValue: false,
+          comment: undefined,
+        },
+        {
+          name: "name",
+          dataType: "TEXT",
+          isNullable: false,
+          isAutoIncrementing: false,
+          hasDefaultValue: false,
+          comment: undefined,
+        },
+        {
+          name: "age",
+          dataType: "INTEGER",
+          isNullable: false,
+          isAutoIncrementing: false,
+          hasDefaultValue: false,
+          comment: undefined,
+        },
+      ],
+    });
+  });
+
+  it("reports a default value when a column has one", async () => {
+    await db.schema
+      .createTable("toy")
+      .addColumn("name", "text", (col) => col.defaultTo("ball"))
+      .execute();
+
+    const toy = (await db.introspection.getTables()).find((table) => table.name === "toy");
+
+    expect(toy?.columns[0]?.hasDefaultValue).toBe(true);
+  });
+
+  it("reports views as views", async () => {
+    await sql`create view "adults" as select "name" from "person" where "age" >= 18`.execute(db);
+
+    const tables = await db.introspection.getTables({ withInternalKyselyTables: false });
+    const adults = tables.find((table) => table.name === "adults");
+
+    expect(adults?.isView).toBe(true);
+  });
+
+  it("reads through a view", async () => {
+    await db.insertInto("person").values({ name: "Jennifer", age: 41 }).execute();
+    await sql`create view "adults" as select "name" from "person" where "age" >= 18`.execute(db);
+
+    const result = await sql<{ name: string }>`select * from "adults"`.execute(db);
+
+    expect(result.rows).toEqual([{ name: "Jennifer" }]);
+  });
+});
+
+describe("BunSqliteDialect result handling", () => {
+  let database: Database;
+  let db: Kysely<TestDB>;
+
+  beforeEach(() => {
+    database = createDatabase();
+    db = createKysely({ database });
+  });
+
+  afterEach(async () => {
+    await db.destroy();
+  });
+
+  it("returns rows for an explain", async () => {
+    const rows = await db.selectFrom("person").selectAll().explain();
+
+    expect(rows.length).toBeGreaterThan(0);
+  });
+
+  it("throws when executeTakeFirstOrThrow finds nothing", async () => {
+    await expect(db.selectFrom("person").selectAll().executeTakeFirstOrThrow()).rejects.toThrow(/no result/i);
+  });
+
+  it("reports no affected rows when insert or ignore inserts nothing", async () => {
+    await db.insertInto("person").values({ name: "Jennifer", age: 41 }).execute();
+
+    const result = await db
+      .insertInto("person")
+      .orIgnore()
+      .values({ name: "Jennifer", age: 42 })
+      .executeTakeFirstOrThrow();
+
+    expect(result.numInsertedOrUpdatedRows).toBe(0n);
+  });
+
+  it("round-trips a blob column", async () => {
+    await db.schema.createTable("file").addColumn("body", "blob").execute();
+    const body = new Uint8Array([0, 1, 2, 255]);
+
+    await sql`insert into "file" ("body") values (${body})`.execute(db);
+    const result = await sql<{ body: Uint8Array }>`select "body" from "file"`.execute(db);
+
+    expect(result.rows[0]?.body).toEqual(body);
+  });
+
+  it("round-trips null through a nullable column", async () => {
+    await db.schema.createTable("toy").addColumn("name", "text").execute();
+
+    await sql`insert into "toy" ("name") values (${null})`.execute(db);
+    const result = await sql<{ name: string | null }>`select "name" from "toy"`.execute(db);
+
+    expect(result.rows).toEqual([{ name: null }]);
+  });
+
+  it("applies a result-transforming plugin", async () => {
+    const camel = new Kysely<{ pet: { id: Generated<number>; name: string; ownerId: number } }>({
+      dialect: new BunSqliteDialect({ database }),
+      plugins: [new CamelCasePlugin()],
+    });
+
+    await db.insertInto("person").values({ name: "Jennifer", age: 41 }).execute();
+    await camel.insertInto("pet").values({ name: "Catto", ownerId: 1 }).execute();
+
+    const pet = await camel.selectFrom("pet").select(["name", "ownerId"]).executeTakeFirstOrThrow();
+
+    expect(pet).toEqual({ name: "Catto", ownerId: 1 });
+  });
+
+  it("closes the database when disposed at the end of a scope", async () => {
+    const scoped = createDatabase();
+
+    {
+      await using disposable = createKysely({ database: scoped });
+      await disposable.selectFrom("person").selectAll().execute();
+    }
+
+    expect(() => scoped.query("select 1").all()).toThrow();
   });
 });

@@ -10,3 +10,7 @@ does not have. This dialect uses `Statement.columnNames` instead and drives the
 rest of the `bun:sqlite` API natively: prepared-statement caching via
 `db.query()`, private cursors for `.stream()`, savepoints, and `deferred` /
 `immediate` / `exclusive` transaction behavior.
+
+Documents that Bun ships SQLite with `DQS=3`, so an unresolvable double-quoted
+identifier is accepted as a string literal rather than raising `no such column`
+as it does under better-sqlite3.
