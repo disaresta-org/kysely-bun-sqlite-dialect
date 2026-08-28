@@ -1,24 +1,19 @@
-import { readFileSync } from "node:fs";
 import { defineConfig } from "tsdown";
 
-const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
-
-// Derive the build target from engines.node so the two cannot drift.
-// Targeting the runtime beats targeting an ES year: an ES year still downlevels
-// anything newer than itself (a `using` declaration costs ~1.8 kB of helpers
-// under es2025 versus 170 bytes native under node26), and a pinned runtime stays
-// reproducible where "esnext" drifts with tool versions.
-const nodeMajor = /(\d+)/.exec(pkg.engines.node)?.[1];
-if (!nodeMajor) {
-  throw new Error(`Could not derive a build target from engines.node: ${pkg.engines.node}`);
-}
+// A syntax baseline, not a runtime claim. This package runs on Bun, and every
+// release in `engines.bun` supports more syntax than this — but pinning a level
+// keeps output reproducible where "esnext" drifts with tool versions, and
+// targeting a runtime beats targeting an ES year, which downlevels anything
+// newer than itself (a `using` declaration costs ~1.8 kB of helpers under
+// es2025 versus 170 bytes native here).
+const SYNTAX_TARGET = "node24";
 
 export default defineConfig({
   entry: ["src/index.ts"],
   outDir: "dist",
   format: ["esm", "cjs"],
   platform: "node",
-  target: `node${nodeMajor}`,
+  target: SYNTAX_TARGET,
   sourcemap: false,
   nodeProtocol: true,
   // `nodeProtocol` prefixes builtin specifiers with `node:`, and it counts

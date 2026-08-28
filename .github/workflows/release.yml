@@ -34,10 +34,14 @@ jobs:
       # Only needed to publish: changesets shells out to the npm CLI (it
       # only special-cases pnpm/yarn), and npm >= 11.5.1 is what implements
       # OIDC trusted publishing. Everything else runs on bun (see bunfig.toml).
+      # Pinned here rather than read from package.json: this package declares no
+      # engines.node, because it needs no Node at runtime. Node exists in this
+      # job only to run the npm CLI, and 24 LTS ships npm 11.13, comfortably
+      # past the 11.5.1 that implements OIDC trusted publishing.
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version-file: package.json  # reads engines.node
+          node-version: 24
 
       - name: Prepare npm for OIDC
         run: |

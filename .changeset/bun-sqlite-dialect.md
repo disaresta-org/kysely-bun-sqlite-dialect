@@ -19,3 +19,7 @@ Requires Kysely `>=0.29.0`. Kysely 0.28 is not supported: its connection mutex
 lived inside `SqliteDriver` rather than `RuntimeDriver`, so a dialect written
 against 0.29 has no lock of its own and parallel transactions interleave on
 0.28's single connection.
+
+Declares `engines.bun` only, with no `engines.node`: the published JavaScript
+never imports `bun:sqlite` itself, so a Node floor would only make npm and pnpm
+warn or fail for consumers over a build-time concern.

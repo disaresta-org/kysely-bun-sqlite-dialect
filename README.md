@@ -193,17 +193,24 @@ bun test
 entry executes under Bun's runtime rather than deferring to its
 `#!/usr/bin/env node` shebang.
 
-`engines.node` is load-bearing even though this package is for Bun: the tsdown
-build target is computed from it, the release workflows read it to set up the
-npm CLI for OIDC publishing, and `scripts/verify-engines.ts` keeps it in step
-with `@types/node`. It says nothing about needing Node at runtime — the built
-JavaScript never imports `bun:sqlite` itself, it only accepts a `Database` you
-hand it.
+`engines.bun` is the whole runtime contract; there is deliberately no
+`engines.node`. The published JavaScript never imports `bun:sqlite` itself — it
+only accepts a `Database` you hand it — so a Node floor would make npm and pnpm
+warn `EBADENGINE`, or fail outright under `engineStrict`, over what is purely a
+build-time concern here. `scripts/verify-engines.ts` fails the build if one
+reappears.
 
-It is set to the current Node LTS (`>=24`) rather than the newest release, so
-installing under npm or pnpm does not warn `EBADENGINE` over a constraint that
-is really about this repo's build. Raising it narrows who can install the
-package without changing what the package needs.
+Node survives in exactly one place: the two release workflows pin it directly,
+because changesets shells out to the npm CLI and npm is what implements OIDC
+trusted publishing. The build's syntax target is a named constant in
+`tsdown.config.ts`, not derived from any engines field.
+
+`publint` prints one suggestion on every build — that the package specify
+`engines.node`. That is expected and deliberately not acted on. It is a
+suggestion, not an error, so it does not fail the build; publint offers only a
+blanket level filter and no per-rule ignore, and silencing every suggestion to
+hide one is not worth it. Adding the field to quiet it will fail
+`bun run lint:packages`.
 
 Note that `tsdown.config.ts` keeps `nodeProtocol: true` but exempts `bun:sqlite`
 via `deps.neverBundle`. The option prefixes builtin specifiers with `node:` and
@@ -232,6 +239,6 @@ lint on pre-push, and commitlint on the commit message.
 | `bun run test:watch`      | Run the test suite in watch mode                                     |
 | `bun run verify-types`    | Type check without emitting                                          |
 | `bun run lint`            | Lint and format `src/`                                               |
-| `bun run lint:packages`   | Check dependency ranges (syncpack) and the `engines.node` coupling    |
+| `bun run lint:packages`   | Check dependency ranges (syncpack) and the Bun version couplings      |
 | `bun run syncpack:update` | Update all dependencies to their latest versions and reinstall        |
 | `bun run clean`           | Remove `.turbo`, `node_modules` and `dist`                           |
