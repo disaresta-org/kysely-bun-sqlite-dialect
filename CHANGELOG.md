@@ -1,5 +1,16 @@
 # kysely-bun-sqlite-dialect
 
+## 1.0.0
+
+### Major Changes
+
+- [`79644ca`](https://github.com/disaresta-org/kysely-bun-sqlite-dialect/commit/79644ca9d20358b82e2c0efe505877b4fd5ec55e) Thanks [@theogravity](https://github.com/theogravity)! - Declare the API stable at 1.0.0.
+  
+  No functional change from 0.1.0. `BunSqliteDialect`, `BunSqliteDriver`, the
+  config surface (`database`, `onCreateConnection`, `transactionBehavior`) and the
+  exported types are exactly what 0.1.0 shipped — they are now covered by semver
+  guarantees rather than 0.x's licence to break things.
+
 ## 0.1.0
 
 ### Minor Changes
