@@ -7,27 +7,6 @@
 A [Kysely](https://kysely.dev) dialect for Bun's native
 [`bun:sqlite`](https://bun.com/docs/runtime/sqlite) driver.
 
-## Why this exists
-
-Kysely's built-in `SqliteDialect` targets `better-sqlite3`. Handed a
-`bun:sqlite` `Database` it does not throw — it silently returns no rows. Its
-connection decides how to run a statement by reading `better-sqlite3`'s
-`Statement.reader`:
-
-```ts
-if (stmt.reader) {
-  return { rows: stmt.all(parameters) }   // never taken on bun:sqlite
-}
-```
-
-Bun's `Statement` has no `reader` property, so the check is always `undefined`,
-every statement takes the write path, and **every `select` resolves to an empty
-array**.
-
-This dialect asks Bun the same question a different way — `stmt.columnNames` is
-non-empty exactly when a statement produces rows — and drives the rest of the
-`bun:sqlite` API natively.
-
 ## Install
 
 ```bash
