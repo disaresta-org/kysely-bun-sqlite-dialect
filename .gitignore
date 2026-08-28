@@ -117,3 +117,6 @@ dist
 .pnp.*
 .idea/
 .turbo/
+
+# Local design notes and specs — kept out of the repo
+docs/
