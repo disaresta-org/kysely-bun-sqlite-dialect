@@ -43,16 +43,15 @@ describe("BunSqliteDialect injection containment", () => {
     expect(tableExists("person")).toBe(true);
   });
 
-  it("treats an unknown quoted identifier as a string, not an error (bun ships DQS=3)", async () => {
-    // better-sqlite3 compiles with SQLITE_DQS=0 and raises "no such column"
-    // here. Bun's build does not, so a mistyped column silently yields its own
-    // name as a value. Pinned so the difference is visible if bun ever changes.
-    const compileOptions = await sql<{
-      compile_options: string;
-    }>`pragma compile_options`.execute(db);
-
-    expect(compileOptions.rows.map((row) => row.compile_options)).toContain("DQS=3");
-
+  it("treats an unknown quoted identifier as a string, not an error", async () => {
+    // SQLite's double-quoted-string misfeature is enabled in Bun's build, so a
+    // mistyped column silently yields its own name as a value. better-sqlite3
+    // compiles with SQLITE_DQS=0 and raises "no such column" instead. Pinned so
+    // the difference is visible if bun ever changes it.
+    //
+    // Asserted as behavior rather than by reading `pragma compile_options`:
+    // which options that pragma reports varies by platform build. macOS lists
+    // DQS=3 explicitly; Linux omits it and inherits the same SQLite default.
     const result = await sql<{ nope: string }>`select "nope" from "person"`.execute(db);
 
     expect(Object.values(result.rows[0] ?? {})).toEqual(["nope"]);

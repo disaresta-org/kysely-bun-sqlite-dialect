@@ -349,9 +349,8 @@ turned up:
 
 ### Finding: bun ships SQLite with `DQS=3`
 
-`pragma compile_options` reports `DQS=3`, so the double-quoted-string
-misfeature is fully enabled and an unresolvable double-quoted identifier is
-accepted as a string literal — `select "nope" from person` yields `"nope"` as a
+SQLite's double-quoted-string misfeature is enabled in Bun's build, so an
+unresolvable double-quoted identifier is accepted as a string literal — `select "nope" from person` yields `"nope"` as a
 value instead of raising `no such column`. better-sqlite3 compiles with
 `SQLITE_DQS=0` and raises. Since Kysely quotes every identifier, any bad column
 reference that escapes its type checking fails silently rather than loudly on
@@ -423,3 +422,17 @@ capability questions like `supportsReturning`, and this package reuses Kysely's
 The GitHub repository was renamed to match, so `repository`, `bugs`, `homepage`
 and the changeset changelog config all name `kysely-bun-sqlite-dialect` too.
 Only the local working directory still carries the old name; nothing reads it.
+
+### Correction: assert the DQS behavior, not the build flags
+
+The first version of that test read `pragma compile_options` and asserted it
+contained `DQS=3`. That passed on macOS and failed in CI on Linux, where Bun's
+SQLite build simply does not list `DQS` — it inherits SQLite's default, which is
+the same value. The two builds differ in several flags (`THREADSAFE=2` versus
+`THREADSAFE=1`, `SYSTEM_MALLOC` only on Linux), so `compile_options` is not a
+portable thing to assert.
+
+The behavior is identical on both, which the Linux run proved incidentally: the
+sibling test that depends on it — an injected column reference resolving to a
+string rather than raising — passed there while only the flag assertion failed.
+The test now asserts the behavior and says why.
