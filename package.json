@@ -1,6 +1,6 @@
 {
-  "name": "example-typescript-package",
-  "description": "",
+  "name": "kysely-bun-sqlite-adapter",
+  "description": "Kysely dialect for Bun's native bun:sqlite driver",
   "version": "0.2.2",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -18,9 +18,19 @@
   "types": "./dist/index.d.ts",
   "sideEffects": false,
   "license": "MIT",
-  "repository": "git@github.com:theogravity/example-typescript-package.git",
+  "repository": "git@github.com:theogravity/kysely-bun-sqlite-adapter.git",
   "author": "Theo Gravity <theo@suteki.nu>",
-  "keywords": [],
+  "keywords": [
+    "kysely",
+    "kysely-dialect",
+    "bun",
+    "bun-sqlite",
+    "sqlite",
+    "sqlite3",
+    "dialect",
+    "sql",
+    "typescript"
+  ],
   "scripts": {
     "build": "tsdown",
     "changeset": "changeset",
@@ -49,6 +59,7 @@
     "@commitlint/config-conventional": "21.2.2",
     "@types/bun": "1.4.0",
     "@types/node": "26.4.0",
+    "kysely": "0.29.5",
     "lefthook": "2.1.10",
     "publint": "0.3.24",
     "syncpack": "15.3.3",
@@ -56,14 +67,18 @@
     "turbo": "2.10.12",
     "typescript": "7.0.2"
   },
-  "bugs": "https://github.com/theogravity/example-typescript-package/issues",
+  "peerDependencies": {
+    "kysely": ">=0.28.0"
+  },
+  "bugs": "https://github.com/theogravity/kysely-bun-sqlite-adapter/issues",
   "engines": {
+    "bun": ">=1.2.0",
     "node": ">=26"
   },
   "files": [
     "dist"
   ],
-  "homepage": "https://github.com/theogravity/example-typescript-package",
+  "homepage": "https://github.com/theogravity/kysely-bun-sqlite-adapter",
   "packageManager": "bun@1.4.0",
   "publishConfig": {
     "access": "public"

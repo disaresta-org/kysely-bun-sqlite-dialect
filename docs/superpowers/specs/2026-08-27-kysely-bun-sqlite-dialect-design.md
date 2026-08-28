@@ -249,3 +249,64 @@ The repo is still an unmodified `example-typescript-package` template.
 - A changeset for the initial feature release.
 
 Build, lint, type-check and CI are inherited unchanged.
+
+## Implementation findings
+
+Three things the design got wrong, corrected in the implementation.
+
+### Parameters must be passed as one array, never spread
+
+`stmt.all(...parameters)` reads correctly but is wrong. Bun treats a lone object
+argument as its named-parameter form, so a single object-valued parameter is
+taken for a bindings map, the positional `?` is left unbound, and it silently
+binds null. A `Date` parameter — which should raise `Binding expected string,
+TypedArray, boolean, number, bigint or null` — instead resolved to
+`{ value: null }`. Bun's own types do not permit the array form
+(`SQLQueryBindings` has no array member), so the bindings are cast, with the
+reason recorded at the cast.
+
+### Streams need a private statement
+
+Statements for `executeQuery` come from `db.query()` as designed, but a cursor
+cannot be backed by a cached statement. Bun's cache hands out one statement per
+SQL string, and a statement holds a single cursor, so:
+
+- re-executing the same SQL mid-iteration resets the cursor, restarting the
+  stream from row one — an unbounded stream, measured as a hang; and
+- abandoning a stream part-way leaves its cursor mid-iteration, so the next
+  stream of the same SQL resumes from where the last one stopped.
+
+The second is reachable in ordinary sequential code and is what the regression
+test pins. `streamQuery` therefore uses `db.prepare()` and `finalize()`s in a
+`finally`, as Kysely's built-in dialect does.
+
+Kysely holds the single connection for the life of a stream (its `RuntimeDriver`
+takes a connection mutex whenever `supportsMultipleConnections` is false), so
+querying inside a `for await` over a stream deadlocks. That is Kysely's
+behavior for every single-connection dialect, not this dialect's to fix; it is
+documented in the README instead.
+
+### `AbortableOperationOptions` does not exist before Kysely 0.29
+
+The design claimed every import was long-standing public API. It was not:
+`AbortableOperationOptions` is new in 0.29, so importing it would have made the
+approved `>=0.28.0` peer range a false claim. The dialect declares the shape it
+forwards locally instead (`BunSqliteOperationOptions`, `{ signal?: AbortSignal }`),
+which satisfies the `Driver` interface structurally on both lines.
+
+The floor is now verified rather than asserted: the full suite and `tsc` were run
+against kysely `0.28.7` as well as `0.29.5`, and pass on both. The only
+difference is test-side — 0.28 exports `Migrator` from the root, 0.29 from
+`kysely/migration` — so the committed tests track the pinned devDependency.
+
+### Packaging
+
+`tsdown`'s `nodeProtocol: true` prefixes builtin specifiers with `node:` and
+treats `bun:sqlite` as a builtin, emitting `import { Database } from
+"node:bun:sqlite"` into `dist/index.d.ts` — a specifier that resolves nowhere,
+and one that neither `attw` nor `publint` flags. It is now `false`, which costs
+nothing because the source imports no node builtins.
+
+`syncpack` rejects a peer range that differs from the pinned devDependency
+version, so a narrow ignore for `kysely`'s peer entry records that the floor is
+deliberate.

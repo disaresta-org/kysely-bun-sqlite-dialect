@@ -1,13 +1,154 @@
-# example-typescript-package
+# kysely-bun-sqlite-adapter
 
-<!-- REPLACE: point these at your own package name -->
-[![NPM version](https://img.shields.io/npm/v/example-typescript-package.svg?style=flat-square)](https://www.npmjs.com/package/example-typescript-package)
-![NPM Downloads](https://img.shields.io/npm/dm/example-typescript-package)
+[![NPM version](https://img.shields.io/npm/v/kysely-bun-sqlite-adapter.svg?style=flat-square)](https://www.npmjs.com/package/kysely-bun-sqlite-adapter)
+![NPM Downloads](https://img.shields.io/npm/dm/kysely-bun-sqlite-adapter)
 [![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg)](http://www.typescriptlang.org/)
 
-Template for creating a new NPM package with ESM and CJS support.
+A [Kysely](https://kysely.dev) dialect for Bun's native
+[`bun:sqlite`](https://bun.com/docs/runtime/sqlite) driver.
 
-## Toolchain
+## Why this exists
+
+Kysely's built-in `SqliteDialect` targets `better-sqlite3`. Handed a
+`bun:sqlite` `Database` it does not throw — it silently returns no rows. Its
+connection decides how to run a statement by reading `better-sqlite3`'s
+`Statement.reader`:
+
+```ts
+if (stmt.reader) {
+  return { rows: stmt.all(parameters) }   // never taken on bun:sqlite
+}
+```
+
+Bun's `Statement` has no `reader` property, so the check is always `undefined`,
+every statement takes the write path, and **every `select` resolves to an empty
+array**.
+
+This dialect asks Bun the same question a different way — `stmt.columnNames` is
+non-empty exactly when a statement produces rows — and drives the rest of the
+`bun:sqlite` API natively.
+
+## Install
+
+```bash
+bun add kysely-bun-sqlite-adapter kysely
+```
+
+## Usage
+
+```ts
+import { Database } from "bun:sqlite";
+import { Kysely, type Generated } from "kysely";
+import { BunSqliteDialect } from "kysely-bun-sqlite-adapter";
+
+interface DB {
+  person: {
+    id: Generated<number>;
+    name: string;
+    age: number;
+  };
+}
+
+const db = new Kysely<DB>({
+  dialect: new BunSqliteDialect({
+    database: new Database("app.db"),
+  }),
+});
+
+const people = await db.selectFrom("person").selectAll().execute();
+```
+
+You construct the `Database`, so every `bun:sqlite` option is yours to set —
+`strict`, `safeIntegers`, `readonly`, `loadExtension`, and any pragmas.
+
+### Opening the database lazily
+
+Pass a function to defer opening until the first query. This is also the place
+to apply pragmas:
+
+```ts
+new BunSqliteDialect({
+  database: async () => {
+    const database = new Database("app.db");
+    database.run("pragma journal_mode = WAL");
+    database.run("pragma foreign_keys = ON");
+    return database;
+  },
+});
+```
+
+The function is called once, on the first query.
+
+### Configuration
+
+| Option                | Type                                                | Default      | Description                                            |
+| --------------------- | --------------------------------------------------- | ------------ | ------------------------------------------------------ |
+| `database`            | `Database \| (options?) => Promise<Database>`        | —            | A `bun:sqlite` database, or a function returning one    |
+| `transactionBehavior` | `"deferred" \| "immediate" \| "exclusive"`           | `"deferred"` | How `begin` opens a transaction                         |
+| `onCreateConnection`  | `(connection, options?) => Promise<void>`            | —            | Called once, after the connection is created            |
+
+### Transactions
+
+`db.transaction()`, `db.startTransaction()` and savepoints all work as usual.
+By default a transaction opens with a bare `begin`, matching Kysely's built-in
+SQLite dialect.
+
+In WAL mode with concurrent writers, prefer `immediate`: a deferred transaction
+that reads before it writes can fail with `SQLITE_BUSY` when it tries to upgrade
+its read lock to a write lock, and `begin immediate` takes the write lock up
+front instead.
+
+```ts
+new BunSqliteDialect({ database, transactionBehavior: "immediate" });
+```
+
+### Streaming
+
+`.stream()` is supported for `select` queries and yields one row at a time:
+
+```ts
+for await (const person of db.selectFrom("person").selectAll().stream()) {
+  console.log(person.name);
+}
+```
+
+SQLite has a single connection, and Kysely holds it for the life of a stream.
+**Do not run another query inside a `for await` over a stream** — it will wait
+for a connection that the stream is still holding. Collect what you need first,
+then query. This is Kysely's behavior for every single-connection dialect, not
+something specific to this one.
+
+## Things worth knowing
+
+- **`destroy()` closes your `Database`.** `await db.destroy()` calls
+  `database.close()`, the same as Kysely's built-in dialect.
+- **`Date` parameters are rejected.** `bun:sqlite` binds only strings,
+  `TypedArray`s, booleans, numbers, bigints and null, so a `Date` raises
+  `Binding expected string, TypedArray, boolean, number, bigint or null`. Store
+  timestamps as ISO strings or epoch numbers. (`better-sqlite3` rejects them
+  too.)
+- **`insert … returning` gives you rows, not an `insertId`.** As with
+  `better-sqlite3`, a statement with a `returning` clause takes the row-reading
+  path; read the values out of the returned rows.
+- **Statements are cached by Bun.** Queries go through `db.query()`, so Bun's
+  compiled-statement LRU owns compilation and finalization. Streams are the one
+  exception: they get a private statement, because a cached statement holds a
+  single cursor and would be reset by any re-execution of the same SQL.
+- **`safeIntegers` works.** Set it on the `Database` and integer columns come
+  back as `bigint`.
+- **Errors are not wrapped.** Bun's error reaches you as-is, with its `code`
+  (`SQLITE_CONSTRAINT_UNIQUE` and friends) and `errno` intact.
+
+## Kysely compatibility
+
+Requires Kysely `>=0.28.0`. The test suite and type checks are run against both
+`0.28.7` and `0.29.5`.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Development notes below.
+
+### Toolchain
 
 | Concern         | Tool                                                   |
 | --------------- | ------------------------------------------------------ |
@@ -20,132 +161,47 @@ Template for creating a new NPM package with ESM and CJS support.
 | Versioning      | [changesets](https://github.com/changesets/changesets)  |
 | Publishing      | npm OIDC trusted publishing (no long-lived token)       |
 
-`bunfig.toml` sets `[run] bun = true`, so every script and `node_modules/.bin`
-entry executes under Bun's runtime rather than deferring to its
-`#!/usr/bin/env node` shebang. Building, type checking, linting and testing all
-work with no Node.js installed at all.
-
-Publishing is the one exception: changesets shells out to the npm CLI, and npm
-is what implements OIDC trusted publishing. So `release.yml` and
-`release-snapshot.yml` set up Node; `lint.yml` and `test.yml` do not.
-
-Note that tests therefore run on Bun, while the published package targets Node.
-For most library code the two are interchangeable, but anything that leans on
-Node-specific runtime behaviour is not covered by this suite.
-
-## Install
-
 ```bash
 bun install
 bunx lefthook install
+bun test
 ```
 
-## Setup
+`bunfig.toml` sets `[run] bun = true`, so every script and `node_modules/.bin`
+entry executes under Bun's runtime rather than deferring to its
+`#!/usr/bin/env node` shebang.
 
-Rename first — everything else assumes the package is no longer called
-`example-typescript-package`:
+`engines.node` is load-bearing even though this package is for Bun: the tsdown
+build target is computed from it, the release workflows read it to set up the
+npm CLI for OIDC publishing, and `scripts/verify-engines.ts` keeps it in step
+with `@types/node`. It says nothing about needing Node at runtime — the built
+JavaScript never imports `bun:sqlite` itself, it only accepts a `Database` you
+hand it.
 
-- `package.json`: `name`, `description`, `version`, `author`, `keywords`,
-  `repository`, `bugs`, `homepage`
-- `.changeset/config.json`: the `repo` field
-- `README.md`: the badge URLs above
-- `LICENSE`: the copyright holder
+Note that `tsdown.config.ts` sets `nodeProtocol: false` deliberately: the option
+prefixes builtin specifiers with `node:` and treats `bun:sqlite` as one,
+emitting an unresolvable `"node:bun:sqlite"` into the declaration file.
 
-In GitHub settings:
-
-- `Actions > General > Workflow permissions`
-  * `Read and write permissions`
-  * `Allow GitHub Actions to create and approve pull requests`
-
-On npmjs.com, for the package you are publishing:
-
-- `Settings > Trusted publisher`
-  * Publisher: `GitHub Actions`
-  * Repository: your `owner/repo`
-  * Workflow filename: `release.yml`
-
-Trusted publishing replaces `NPM_TOKEN`. A package must already exist on npm
-before a trusted publisher can be attached, so the very first release needs a
-manual `npm publish` (or a temporary token).
-
-## Node version
-
-`engines.node` is the single source of truth. Everything else derives from it:
-
-| Consumer            | How it gets the version                                    |
-| ------------------- | ---------------------------------------------------------- |
-| tsdown build target | computed in `tsdown.config.ts` (currently `node26`)         |
-| CI                  | `node-version-file: package.json` in the workflows          |
-| `@types/node`       | **not** derivable — checked by `scripts/verify-engines.ts`  |
-
-`scripts/verify-engines.ts` guards a second pair on the same principle:
-`@types/bun` must track the Bun release pinned in `packageManager`, or the
-`bun:test` and Bun API typings describe a different runtime than the one you
-run.
-
-To move Node versions, edit `engines.node` and run `bun run lint:packages`. The
-check will tell you if `@types/node` needs to follow, and in which direction:
-typings ahead of the floor let TypeScript accept APIs missing at runtime,
-typings behind it hide APIs the runtime actually has. That check runs on
-pre-commit and in every CI workflow.
-
-The build targets the runtime rather than an ES year, because an ES year still
-downlevels syntax that postdates it — a `using` declaration costs ~1.8 kB of
-helpers under `es2025` versus 170 bytes emitted natively under `node26`. A
-pinned `nodeNN` is also reproducible where `esnext` drifts with tool versions.
-`tsconfig.json` uses `ESNext` for `target`/`lib` so type checking allows
-everything the runtime supports.
-
-> **Node 26 is the _Current_ line and does not become LTS until October 2026.**
-> Until then this template asks consumers to run a non-LTS Node, and installs on
-> Node 24 will warn (`EBADENGINE`) or fail outright under `engineStrict` or
-> pnpm. Lower `engines.node` if your package needs broader reach.
-
-## Development workflow
-
-Adding a CHANGELOG entry and versioning the package:
+### Development workflow
 
 - Create a branch and make changes.
-- Create a new changeset entry: `bun run changeset`
-- Commit your changes and open a pull request.
-- Merge the pull request.
-- A new PR will be created with the changeset entry/entries.
-- When *that* PR is merged, the version is bumped, the changelog updated, and
-  the package published.
+- Create a changeset entry: `bun run changeset`
+- Commit and open a pull request.
+- When the release PR that changesets opens is merged, the version is bumped,
+  the changelog updated, and the package published.
 
 Lefthook runs lint, formatting, package checks and type checking on pre-commit,
 lint on pre-push, and commitlint on the commit message.
 
-## Scripts
+### Scripts
 
-Everyday:
-
-| Script                 | Description                                                 |
-| ---------------------- | ------------------------------------------------------------ |
-| `bun run build`        | Bundle to `dist/`, then validate with publint and attw        |
-| `bun run test`         | Run the test suite once                                       |
-| `bun run test:watch`   | Run the test suite in watch mode                              |
-| `bun run verify-types` | Type check without emitting                                   |
-| `bun run lint`         | Lint and format `src/`                                        |
-| `bun run lint:staged`  | Same, limited to staged files (used by the pre-commit hook)   |
-| `bun run debug`        | Run `src/index.ts` with the inspector attached                |
-| `bun run debug:break`  | Same, breaking on the first line                              |
-| `bun run clean`        | Remove `.turbo`, `node_modules` and `dist`                    |
-
-Dependencies and package hygiene:
-
-| Script                    | Description                                                       |
-| ------------------------- | ------------------------------------------------------------------ |
-| `bun run lint:packages`   | Check dependency ranges (syncpack) and the `engines.node` coupling  |
-| `bun run syncpack:lint`   | Dependency range check only                                         |
-| `bun run syncpack:format` | Sort `package.json` fields into a consistent order                  |
-| `bun run syncpack:update` | Update all dependencies to their latest versions and reinstall      |
-
-Releasing — normally driven by CI, not run by hand:
-
-| Script                     | Description                                              |
-| -------------------------- | --------------------------------------------------------- |
-| `bun run changeset`        | Record a changeset describing your change                  |
-| `bun run version-packages` | Apply pending changesets: bump versions, write CHANGELOG   |
-| `bun run release`          | Publish unpublished versions to npm                        |
-| `bun run commitlint`       | Lint a commit message (used by the commit-msg hook)        |
+| Script                    | Description                                                        |
+| ------------------------- | ------------------------------------------------------------------- |
+| `bun run build`           | Bundle to `dist/`, then validate with publint and attw               |
+| `bun run test`            | Run the test suite once                                              |
+| `bun run test:watch`      | Run the test suite in watch mode                                     |
+| `bun run verify-types`    | Type check without emitting                                          |
+| `bun run lint`            | Lint and format `src/`                                               |
+| `bun run lint:packages`   | Check dependency ranges (syncpack) and the `engines.node` coupling    |
+| `bun run syncpack:update` | Update all dependencies to their latest versions and reinstall        |
+| `bun run clean`           | Remove `.turbo`, `node_modules` and `dist`                           |

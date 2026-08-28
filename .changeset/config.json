@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@4.0.0/schema.json",
-  "changelog": ["@changesets/changelog-github", { "repo": "theogravity/boilerplate-typescript-package" }],
+  "changelog": ["@changesets/changelog-github", { "repo": "theogravity/kysely-bun-sqlite-adapter" }],
   "access": "public",
   "baseBranch": "main"
 }

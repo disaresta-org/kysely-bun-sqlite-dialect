@@ -21,6 +21,17 @@ export default {
     "resolutions",
   ],
   sortAz: [],
+  versionGroups: [
+    // A peer range is a supported floor, so it deliberately sits below the
+    // exact version pinned in devDependencies for testing.
+    {
+      label: "peer ranges are floors, not pins",
+      dependencyTypes: ["peer"],
+      dependencies: ["kysely"],
+      packages: ["**"],
+      isIgnored: true,
+    },
+  ],
   semverGroups: [
     // Peer ranges stay permissive.
     {
