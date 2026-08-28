@@ -7,8 +7,6 @@
 A [Kysely](https://kysely.dev) dialect for Bun's native
 [`bun:sqlite`](https://bun.com/docs/runtime/sqlite) driver.
 
-Built and maintained by [Disaresta](https://disaresta.com).
-
 ## Why this exists
 
 Kysely's built-in `SqliteDialect` targets `better-sqlite3`. Handed a
@@ -252,4 +250,8 @@ lint on pre-push, and commitlint on the commit message.
 
 ## License
 
-MIT © [Disaresta](https://disaresta.com)
+MIT © Disaresta
+
+---
+
+Built and maintained by [Disaresta](https://disaresta.com).
