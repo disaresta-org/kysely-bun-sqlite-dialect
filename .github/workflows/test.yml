@@ -1,0 +1,27 @@
+name: Test
+
+on:
+  pull_request:
+
+jobs:
+  test:
+    name: Testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Use bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build package
+        run: bun run build
+
+      - name: Run Package Tests
+        run: bun run test

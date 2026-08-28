@@ -1,0 +1,57 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.10/schema.json",
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "lineWidth": 120,
+    "includes": [
+      "**",
+      "!**/node_modules/**/*",
+      "!**/*.config.*",
+      "!**/*.json",
+      "!**/tsconfig.json",
+      "!**/.turbo",
+      "!**/dist/**/*",
+      "!**/.pnpm-store/**/*"
+    ]
+  },
+  "linter": {
+    "enabled": true,
+    "includes": ["**", "!**/dist/**/*", "!**/.pnpm-store/**/*", "!**/packages/backend-client/**/*"],
+    "rules": {
+      "style": {
+        "noNonNullAssertion": "off",
+        "noParameterAssign": "off",
+        "useAsConstAssertion": "error",
+        "useDefaultParameterLast": "error",
+        "useEnumInitializers": "error",
+        "useSelfClosingElements": "error",
+        "useSingleVarDeclarator": "error",
+        "noUnusedTemplateLiteral": "error",
+        "useNumberNamespace": "error",
+        "noInferrableTypes": "error",
+        "noUselessElse": "error"
+      },
+      "performance": {
+        "noDelete": "off"
+      },
+      "complexity": {
+        "useLiteralKeys": "off",
+        "useArrowFunction": "off"
+      },
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedPrivateClassMembers": {
+          "level": "off",
+          "fix": "none"
+        }
+      },
+      "suspicious": {
+        "noImplicitAnyLet": "off",
+        "noExplicitAny": "off"
+      },
+      "preset": "recommended"
+    }
+  }
+}

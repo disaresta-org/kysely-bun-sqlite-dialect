@@ -1,0 +1,5 @@
+# Prevent merge conflicts with CHANGELOG.md updates
+CHANGELOG.md merge=union
+
+# Bun's text lockfile is committed, but collapse it in diffs/PR reviews
+bun.lock linguist-generated=true

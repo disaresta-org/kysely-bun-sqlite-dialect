@@ -1,0 +1,74 @@
+{
+  "name": "example-typescript-package",
+  "description": "",
+  "version": "0.2.2",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    "import": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "require": {
+      "types": "./dist/index.d.cts",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "license": "MIT",
+  "repository": "git@github.com:theogravity/example-typescript-package.git",
+  "author": "Theo Gravity <theo@suteki.nu>",
+  "keywords": [],
+  "scripts": {
+    "build": "tsdown",
+    "changeset": "changeset",
+    "clean": "rm -rf .turbo node_modules dist",
+    "commitlint": "commitlint",
+    "debug": "bun --inspect src/index.ts",
+    "debug:break": "bun --inspect-brk src/index.ts",
+    "lint": "biome check --no-errors-on-unmatched --write --unsafe src",
+    "lint:packages": "syncpack lint && bun scripts/verify-engines.ts",
+    "lint:staged": "biome check --no-errors-on-unmatched --write --unsafe --staged src",
+    "release": "changeset publish",
+    "syncpack:format": "syncpack format",
+    "syncpack:lint": "syncpack lint",
+    "syncpack:update": "syncpack update && syncpack fix && bun install",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "verify-types": "tsc --noEmit",
+    "version-packages": "changeset version"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/core": "0.18.5",
+    "@biomejs/biome": "2.5.10",
+    "@changesets/changelog-github": "1.0.0",
+    "@changesets/cli": "3.0.1",
+    "@commitlint/cli": "21.2.2",
+    "@commitlint/config-conventional": "21.2.2",
+    "@types/bun": "1.4.0",
+    "@types/node": "26.4.0",
+    "lefthook": "2.1.10",
+    "publint": "0.3.24",
+    "syncpack": "15.3.3",
+    "tsdown": "0.22.14",
+    "turbo": "2.10.12",
+    "typescript": "7.0.2"
+  },
+  "bugs": "https://github.com/theogravity/example-typescript-package/issues",
+  "engines": {
+    "node": ">=26"
+  },
+  "files": [
+    "dist"
+  ],
+  "homepage": "https://github.com/theogravity/example-typescript-package",
+  "packageManager": "bun@1.4.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "trustedDependencies": [
+    "lefthook"
+  ]
+}

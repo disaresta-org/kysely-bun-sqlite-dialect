@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: write
+  pull-requests: write # Required by changesets/action for version PRs
+  id-token: write      # Required for OIDC trusted publishing
+
+jobs:
+  release:
+    name: Releasing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Use bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      # Only needed to publish: changesets shells out to the npm CLI (it
+      # only special-cases pnpm/yarn), and npm >= 11.5.1 is what implements
+      # OIDC trusted publishing. Everything else runs on bun (see bunfig.toml).
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json  # reads engines.node
+
+      - name: Prepare npm for OIDC
+        run: |
+          echo "npm version: $(npm --version)"
+          rm -f ~/.npmrc
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build package
+        run: bun run build
+
+      - name: Run package checking
+        run: bun run lint:packages
+
+      - name: Run type checking
+        run: bun run verify-types
+
+      - name: Run linting
+        run: bun run lint
+
+      - name: Create Release Pull Request / Publish Package
+        uses: changesets/action@v1
+        with:
+          publish: bun run release
+          version: bun run version-packages
+          commit: 'chore: release package'
+          title: 'chore: release package'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ''
+          NODE_AUTH_TOKEN: ''

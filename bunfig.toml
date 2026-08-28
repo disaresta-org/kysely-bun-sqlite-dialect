@@ -1,0 +1,4 @@
+# Execute all scripts and node_modules/.bin entries with Bun's runtime
+# instead of deferring to the `#!/usr/bin/env node` shebang.
+[run]
+bun = true
