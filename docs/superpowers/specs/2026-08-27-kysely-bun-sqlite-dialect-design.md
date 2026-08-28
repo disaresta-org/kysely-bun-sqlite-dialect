@@ -420,6 +420,6 @@ means something specific and different in Kysely — a `DialectAdapter` answers
 capability questions like `supportsReturning`, and this package reuses Kysely's
 `SqliteAdapter` unchanged. What it ships is a `Dialect`.
 
-The GitHub repository is still `kysely-bun-sqlite-adapter`, so
-`repository`, `bugs`, `homepage` and the changeset changelog config keep that
-name. Renaming the repo would mean updating all four.
+The GitHub repository was renamed to match, so `repository`, `bugs`, `homepage`
+and the changeset changelog config all name `kysely-bun-sqlite-dialect` too.
+Only the local working directory still carries the old name; nothing reads it.
