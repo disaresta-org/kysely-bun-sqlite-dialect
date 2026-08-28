@@ -20,11 +20,13 @@ export default defineConfig({
   platform: "node",
   target: `node${nodeMajor}`,
   sourcemap: false,
-  // Off deliberately: this option prefixes builtin specifiers with `node:`,
-  // and it treats `bun:sqlite` as one, emitting `import { Database } from
-  // "node:bun:sqlite"` into the .d.ts — a specifier that resolves nowhere.
-  // Nothing here imports a node builtin, so there is nothing to prefix.
-  nodeProtocol: false,
+  nodeProtocol: true,
+  // `nodeProtocol` prefixes builtin specifiers with `node:`, and it counts
+  // `bun:sqlite` as a builtin, emitting `import { Database } from
+  // "node:bun:sqlite"` into the .d.ts — a specifier that resolves nowhere, and
+  // one neither publint nor attw flags. Exempting it keeps the normalization
+  // working for actual node builtins instead of disabling it repo-wide.
+  deps: { neverBundle: ["bun:sqlite"] },
   fixedExtension: false,
   // Validate the published package shape on every build.
   publint: true,

@@ -3,19 +3,20 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import type { Kysely } from "kysely";
 import { createDatabase, createKysely, type TestDB } from "./helpers.js";
 
+// One fresh in-memory database per test, shared by every group in this file.
+let database: Database;
+let db: Kysely<TestDB>;
+
+beforeEach(() => {
+  database = createDatabase();
+  db = createKysely({ database });
+});
+
+afterEach(async () => {
+  await db.destroy();
+});
+
 describe("BunSqliteDialect streaming", () => {
-  let database: Database;
-  let db: Kysely<TestDB>;
-
-  beforeEach(() => {
-    database = createDatabase();
-    db = createKysely({ database });
-  });
-
-  afterEach(async () => {
-    await db.destroy();
-  });
-
   it("streams every row of a select", async () => {
     await db
       .insertInto("person")
@@ -85,16 +86,6 @@ describe("BunSqliteDialect streaming", () => {
 });
 
 describe("BunSqliteDialect stream cursors", () => {
-  let db: Kysely<TestDB>;
-
-  beforeEach(() => {
-    db = createKysely({ database: createDatabase() });
-  });
-
-  afterEach(async () => {
-    await db.destroy();
-  });
-
   it("starts a later stream of the same sql from the first row", async () => {
     await db
       .insertInto("person")

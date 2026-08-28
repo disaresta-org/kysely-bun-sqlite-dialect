@@ -4,21 +4,22 @@ import { type DatabaseConnection, Kysely, sql } from "kysely";
 import { BunSqliteDialect, BunSqliteDriver } from "../index.js";
 import { createDatabase, createKysely, recordSql, type TestDB } from "./helpers.js";
 
+// One fresh in-memory database per test, shared by every group in this file.
+let database: Database;
+let db: Kysely<TestDB>;
+
+beforeEach(() => {
+  database = createDatabase();
+  db = createKysely({ database });
+});
+
+afterEach(async () => {
+  await db.destroy();
+});
+
+const names = () => db.selectFrom("person").select("name").orderBy("name").execute();
+
 describe("BunSqliteDialect transactions", () => {
-  let database: Database;
-  let db: Kysely<TestDB>;
-
-  beforeEach(() => {
-    database = createDatabase();
-    db = createKysely({ database });
-  });
-
-  afterEach(async () => {
-    await db.destroy();
-  });
-
-  const names = () => db.selectFrom("person").select("name").orderBy("name").execute();
-
   it("commits a transaction", async () => {
     await db.transaction().execute(async (trx) => {
       await trx.insertInto("person").values({ name: "Jennifer", age: 41 }).execute();
@@ -119,18 +120,6 @@ describe("BunSqliteDialect transactions", () => {
 });
 
 describe("BunSqliteDialect transaction contract", () => {
-  let database: Database;
-  let db: Kysely<TestDB>;
-
-  beforeEach(() => {
-    database = createDatabase();
-    db = createKysely({ database });
-  });
-
-  afterEach(async () => {
-    await db.destroy();
-  });
-
   it("does not roll back a transaction that failed to begin", async () => {
     const base = new BunSqliteDialect({ database });
     let rollbacks = 0;
@@ -195,8 +184,6 @@ describe("BunSqliteDialect transaction contract", () => {
       /rolled back/,
     );
   });
-
-  const names = () => db.selectFrom("person").select("name").orderBy("name").execute();
 
   it("keeps work done before a released savepoint", async () => {
     const trx = await db.startTransaction().execute();

@@ -5,19 +5,20 @@ import { type Migration, type MigrationProvider, Migrator } from "kysely/migrati
 import { BunSqliteDialect } from "../index.js";
 import { createDatabase, createKysely, type TestDB } from "./helpers.js";
 
+// One fresh in-memory database per test, shared by every group in this file.
+let database: Database;
+let db: Kysely<TestDB>;
+
+beforeEach(() => {
+  database = createDatabase();
+  db = createKysely({ database });
+});
+
+afterEach(async () => {
+  await db.destroy();
+});
+
 describe("BunSqliteDialect integration", () => {
-  let database: Database;
-  let db: Kysely<TestDB>;
-
-  beforeEach(() => {
-    database = createDatabase();
-    db = createKysely({ database });
-  });
-
-  afterEach(async () => {
-    await db.destroy();
-  });
-
   it("introspects tables and columns", async () => {
     const tables = await db.introspection.getTables();
 
@@ -103,16 +104,6 @@ describe("BunSqliteDialect integration", () => {
 });
 
 describe("BunSqliteDialect parameter binding", () => {
-  let db: Kysely<TestDB>;
-
-  beforeEach(() => {
-    db = createKysely({ database: createDatabase() });
-  });
-
-  afterEach(async () => {
-    await db.destroy();
-  });
-
   it("binds a lone object parameter positionally rather than as named bindings", async () => {
     // Bun reads a single object argument as a named-bindings map, so binding a
     // Date must raise rather than silently leaving the `?` unbound.
@@ -168,18 +159,6 @@ describe("BunSqliteDialect parameter binding", () => {
 });
 
 describe("BunSqliteDialect introspection", () => {
-  let database: Database;
-  let db: Kysely<TestDB>;
-
-  beforeEach(() => {
-    database = createDatabase();
-    db = createKysely({ database });
-  });
-
-  afterEach(async () => {
-    await db.destroy();
-  });
-
   it("reports no schemas, as sqlite has none", async () => {
     expect(await db.introspection.getSchemas()).toEqual([]);
   });
@@ -254,18 +233,6 @@ describe("BunSqliteDialect introspection", () => {
 });
 
 describe("BunSqliteDialect result handling", () => {
-  let database: Database;
-  let db: Kysely<TestDB>;
-
-  beforeEach(() => {
-    database = createDatabase();
-    db = createKysely({ database });
-  });
-
-  afterEach(async () => {
-    await db.destroy();
-  });
-
   it("returns rows for an explain", async () => {
     const rows = await db.selectFrom("person").selectAll().explain();
 

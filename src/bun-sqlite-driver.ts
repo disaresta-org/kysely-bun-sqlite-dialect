@@ -17,6 +17,13 @@ import {
   type BunSqliteTransactionBehavior,
 } from "./bun-sqlite-dialect-config.js";
 
+/**
+ * Bun types `Statement`'s parameters as a tuple of individual bindings, which
+ * cannot express the single-array form this driver has to use (see
+ * {@link toBindings}), so both call sites widen it.
+ */
+type PreparedStatement = Statement<unknown, any[]>;
+
 const BEGIN_SQL: Record<BunSqliteTransactionBehavior, string> = {
   deferred: "begin",
   immediate: "begin immediate",
@@ -123,7 +130,9 @@ class BunSqliteConnection implements DatabaseConnection {
   }
 
   async executeQuery<R>(compiledQuery: CompiledQuery): Promise<QueryResult<R>> {
-    const statement = this.#prepare(compiledQuery.sql);
+    // `query` caches the compiled statement in Bun's own LRU, which also owns
+    // finalizing it. `prepare` would leak unless finalized by hand.
+    const statement: PreparedStatement = this.#database.query(compiledQuery.sql);
     const bindings = toBindings(compiledQuery.parameters);
 
     // `bun:sqlite` has no equivalent of better-sqlite3's `Statement.reader`,
@@ -154,7 +163,7 @@ class BunSqliteConnection implements DatabaseConnection {
     // one forever, and two streams of the same SQL would consume each other's
     // rows. So a stream gets a private statement and finalizes it on the way
     // out, since nothing else will.
-    const statement: Statement<unknown, any[]> = this.#database.prepare(compiledQuery.sql);
+    const statement: PreparedStatement = this.#database.prepare(compiledQuery.sql);
 
     try {
       // `bun:sqlite` iterates row by row, so `chunkSize` has nothing to batch.
@@ -164,12 +173,6 @@ class BunSqliteConnection implements DatabaseConnection {
     } finally {
       statement.finalize();
     }
-  }
-
-  #prepare(sql: string): Statement<unknown, any[]> {
-    // `query` caches the compiled statement in Bun's own LRU, which also owns
-    // finalizing it. `prepare` would leak unless finalized by hand.
-    return this.#database.query(sql);
   }
 }
 
