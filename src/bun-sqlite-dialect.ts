@@ -18,7 +18,7 @@ import { BunSqliteDriver } from "./bun-sqlite-driver.js";
  * ```ts
  * import { Database } from "bun:sqlite";
  * import { Kysely } from "kysely";
- * import { BunSqliteDialect } from "kysely-bun-sqlite-adapter";
+ * import { BunSqliteDialect } from "kysely-bun-sqlite-dialect";
  *
  * const db = new Kysely<DB>({
  *   dialect: new BunSqliteDialect({

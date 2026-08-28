@@ -1,4 +1,4 @@
-# kysely-bun-sqlite-adapter — design
+# kysely-bun-sqlite-dialect — design
 
 Date: 2026-08-27
 Status: proposed — awaiting review
@@ -411,3 +411,15 @@ returned autoincrement id of exactly `1`, and two different tests each creating
 a table named `toy`. The per-test `beforeEach` that constructs a new
 `:memory:` database is therefore load-bearing, not scaffolding. It may be
 hoisted to file scope (it has been) but not widened to `beforeAll`.
+
+## Correction: the package is named `kysely-bun-sqlite-dialect`
+
+It was `kysely-bun-sqlite-adapter` through most of this work, after the
+directory it was built in. `dialect` is the accurate word: `adapter` already
+means something specific and different in Kysely — a `DialectAdapter` answers
+capability questions like `supportsReturning`, and this package reuses Kysely's
+`SqliteAdapter` unchanged. What it ships is a `Dialect`.
+
+The GitHub repository is still `kysely-bun-sqlite-adapter`, so
+`repository`, `bugs`, `homepage` and the changeset changelog config keep that
+name. Renaming the repo would mean updating all four.

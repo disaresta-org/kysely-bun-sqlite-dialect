@@ -1,7 +1,7 @@
-# kysely-bun-sqlite-adapter
+# kysely-bun-sqlite-dialect
 
-[![NPM version](https://img.shields.io/npm/v/kysely-bun-sqlite-adapter.svg?style=flat-square)](https://www.npmjs.com/package/kysely-bun-sqlite-adapter)
-![NPM Downloads](https://img.shields.io/npm/dm/kysely-bun-sqlite-adapter)
+[![NPM version](https://img.shields.io/npm/v/kysely-bun-sqlite-dialect.svg?style=flat-square)](https://www.npmjs.com/package/kysely-bun-sqlite-dialect)
+![NPM Downloads](https://img.shields.io/npm/dm/kysely-bun-sqlite-dialect)
 [![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg)](http://www.typescriptlang.org/)
 
 A [Kysely](https://kysely.dev) dialect for Bun's native
@@ -31,7 +31,7 @@ non-empty exactly when a statement produces rows — and drives the rest of the
 ## Install
 
 ```bash
-bun add kysely-bun-sqlite-adapter kysely
+bun add kysely-bun-sqlite-dialect kysely
 ```
 
 ## Usage
@@ -39,7 +39,7 @@ bun add kysely-bun-sqlite-adapter kysely
 ```ts
 import { Database } from "bun:sqlite";
 import { Kysely, type Generated } from "kysely";
-import { BunSqliteDialect } from "kysely-bun-sqlite-adapter";
+import { BunSqliteDialect } from "kysely-bun-sqlite-dialect";
 
 interface DB {
   person: {

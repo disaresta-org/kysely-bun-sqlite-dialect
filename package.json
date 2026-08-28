@@ -1,5 +1,5 @@
 {
-  "name": "kysely-bun-sqlite-adapter",
+  "name": "kysely-bun-sqlite-dialect",
   "description": "Kysely dialect for Bun's native bun:sqlite driver",
   "version": "0.0.0",
   "type": "module",

@@ -1,5 +1,5 @@
 ---
-"kysely-bun-sqlite-adapter": minor
+"kysely-bun-sqlite-dialect": minor
 ---
 
 Add `BunSqliteDialect`, a Kysely dialect for Bun's native `bun:sqlite` driver.
