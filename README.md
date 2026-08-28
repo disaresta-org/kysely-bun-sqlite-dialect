@@ -147,6 +147,11 @@ something specific to this one.
   any typo Kysely cannot catch at the type level reaches SQLite this way. It is
   not an injection risk — the whole token is one literal — but it does mean a
   bad column reference fails silently.
+- **Two handles on one file are fine.** A second connection — an auth library
+  with its own `Database`, say — sees this one's committed writes and vice versa,
+  provided the file is in WAL mode. That is also the setup where
+  `transactionBehavior: "immediate"` matters most, and where write contention
+  surfaces as a `SQLITE_BUSY` error rather than a hang.
 - **`safeIntegers` works.** Set it on the `Database` and integer columns come
   back as `bigint`.
 - **Errors are not wrapped.** Bun's error reaches you as-is, with its `code`
